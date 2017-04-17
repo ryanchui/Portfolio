@@ -1,6 +1,6 @@
 ---
 title: "Project2 Project Group 49"
-output: html_document
+output: pdf_document
 ---
 
 ```{r, echo = FALSE}
@@ -40,7 +40,7 @@ processLine = function(x){
 ```
 
 ```{r, echo = FALSE}
-load("offline.rda")
+offline = readLines("offline.final.trace.txt")
 summary(offline)
 summary(offline$mac)
 hist(as.numeric(as.character(offline$signal[as.character(offline$mac) == "00:0f:a3:39:dd:cd"]))
