@@ -1,0 +1,210 @@
+
+---
+Name: Ryan Chui
+Class: Stat 153
+title: "HW6"
+output: html_document
+---
+
+2 (a) Consider the data xt = sin(πt2/256) for t = 0, 1, . . . , 127. Plot the data. Also plot the magnitude (absolute) of the DFT coefficients b1, . . . , b64. Comment on the two plots.
+```{r}
+xs <- seq(0,127)
+wave.1 <- sin((pi*xs^2)/256)
+par(mfrow = c(1, 2))
+plot(xs,wave.1,type="l",ylim=c(-1,1), xlab="time",ylab="f(t)")
+abline(h=0,lty=3)
+
+wave.1.abs <- abs(sin((pi*xs^2)/256))
+par(mfrow = c(1, 2))
+plot(xs,wave.1.abs,type="l",ylim=c(-1,1),xlab="time",ylab="f(t)")
+abline(h=0,lty=3)
+```
+
+```{r}
+xs <- seq(0,127)
+wave.2 <- sin((pi*xs^2)/512)
+par(mfrow = c(1, 2))
+plot(xs,wave.1,type="l",ylim=c(-1,1), xlab="time",ylab="f(t)")
+abline(h=0,lty=3)
+
+wave.3 <- sin((pi*xs^2)/1024)
+par(mfrow = c(1, 2))
+plot(xs,wave.2,type="l",ylim=c(-1,1),xlab="time",ylab="f(t)")
+abline(h=0,lty=3)
+```
+
+4. Consider the following seasonal AR model:
+(1 − φB)(1 − ΦBs)Xt = Zt,
+where {Zt} is white noise and |φ| < 1, |Φ| < 1.
+(a) Calculate the spectral density of {Xt}.
+```{r}
+
+
+```
+(b) Plot the spectral density for φ = 0.5, Φ = 0.9, σz^2 = 1 and s = 12
+```{r}
+# Set seed for reproducibility
+set.seed(5532)
+# Generate a SARIMA(1,0,1)(1,0,0)[12] 
+# spec.ar estimate spectral density of a time series from AR fit
+a = spec.ar(arima.sim(list(order = c(1,0,0), ar = 0.5, seasonal = c(1,0,0), ar = 0.9, period=12), sd = 1, n = 100))
+# Plotting Spectral Densities
+# plot.spec.phase(a)
+
+```
+
+(c) Also plot the spectral density for the AR(1) process (1 − 0.5B)Xt = Zt and the seasonal AR(1) process (1 − 0.9B12)Xt = Zt.
+```{r}
+# Set seed for reproducibility
+set.seed(5532)
+
+psi <- function(z) 1/(1 - 0.5*z)
+f <- function(x) abs(psi(exp(2i*pi*x)))^2
+plotPGram <- function(data, smooth) {
+  k <- kernel("daniell", if (smooth) floor(sqrt(length(data))) else 0)
+  title <- sprintf("Raw periodogram for %d samples", length(data))
+  if (smooth)
+  title <- sprintf("Smoothed periodogram for %d samples", length(data))
+  p <- spec.pgram(data, k, taper=0, log="no", ylim=c(0,40), main=title)
+  grid <- (0:50) / 100
+  lines(grid, f(grid), lty=2)
+  df <- p$df
+  U <- df / qchisq(0.025, df)
+  L <- df / qchisq(0.975, df)
+  len <- length(p$spec)
+  idx <- round(len/5) # Spectral density at 0.1
+  # Return a confidence interval
+  c(p$spec[idx] * L, p$spec[idx] * U)
+}
+
+q4 <- function(n) {
+  x <- arima.sim(model=list(ar=0.5), n)
+plotPGram(x, F)
+}
+
+q4(30)
+
+# Set seed for reproducibility
+set.seed(5532)
+q4seasonal <- function(n) {
+  x <- arima.sim(model = list(seasonal = c(1,0,0), ar = 0.9, period=12), n)
+plotPGram(x, F)
+}
+q4seasonal(30)
+```
+
+(d) Compare and comment on the different plots.
+
+
+
+
+Q6
+Consider the stationary Autoregressive process:
+Xt − 0.99Xt−3 = Zt
+where {Zt} is white noise.
+```{r}
+# Compute Explicitly
+omega = seq(from = 0,to = 1/2, length = 110)
+a = -2 * pi * 1i * omega
+fx = 1 / Mod(1 - 0.99*exp(3*a))^2
+plot(omega, fx , type = "l",log = "y")
+omega[which.max(fx)]
+abline(v = omega[which.max(fx)], col = "blue")
+```
+
+b) Does the spectral density suggest that the sample paths of {Xt} will exhibit approximately oscillatory behaviour? If yes, then with what period?
+```{r}
+# z = exp(-2 * pi * 1i * w)
+p = (1 / 0.99)^(1/3)
+w = log(p) / (-2 * pi * 1i)
+w
+
+# Scale the closest points on unit circle
+z = p / Mod(p)
+w = log(z) / (-2 * pi * 1i)
+w
+
+```
+
+Yes, the spectral density suggest that the sample paths of {Xt} will exhibit approximately oscillatory behaviour. fx(w) is large for w = 0
+
+(c) Simulate a sample of size 100 from this model. Plot the simulated data. Does this plot support the conclusion of part (b)?
+```{r}
+# Recall AR(3) model
+par(mfrow=c(2,1))
+set.seed(12345) # for reproducibility
+plot(ts(arima.sim(list(ar = c(0,0,0.99)), n = 100)))
+```
+
+(d) Compute the spectral density of the filtered process:
+Yt = (Xt−1 + Xt + Xt+1)/3                         (1)
+How does the spectral density of {Yt} compare to that of {Xt}?
+```{r}
+# Compute Explicitly
+w = seq(from = 0, to = 1/2, length = 110)
+# Let sigma2 = 1
+fx = 1 / 9 * (3 + 4 * cos(2 * pi * w) + 2*cos(4 * pi * w))
+plot(omega, fx , type = "l", log = "y")
+omega[which.max(fx)]
+abline(v = omega[which.max(fx)], col = "blue")
+```
+
+(e) From the simulated sample from {Xt} in part (c), perform the averaging as in (1) to obtain a simulated sample from {Yt}. Plot this sample. Does this plot support the spectral density plot in part (d)?
+```{r}
+par(mfrow=c(2,1))
+plot(ts(arima.sim(list(ar = c(0,0,0.99)), n = 100)))
+```
+
+7. Without using the arima.sim() function in R, simulate n = 400 observations from the multiplicative seasonal ARMA model given by the difference equation: (1 − 0.5B)(1 − 0.7B 12)Xt = Zt where {Zt} is white noise. Plot the sample autocorrelation function of the simulated observations and compare it with the true acf of the process.
+```{r}
+library('astsa')
+set.seed(12345)
+# fit a seasonal ARIMA(1, 0, 0) x (1, 0, 0)12 model to the series in x
+v = rnorm(400,1,1)
+x = cumsum(v)  # x is a random walk with drift = 1 
+sarima(x,1,0,0,1,0,0,12,  details=FALSE)
+# Now, forecast
+sarima.for(x,400,1,0,0,1,0,0,12)
+acf2(x, 30)  # computes to lag sqrt(n)+10 ; 
+             # specify the number of lags... 20
+
+# A seasonal AR(1) model has significant lags at 1, 12 and 13, with an increasing trend before lag 12, sharply cut off at lag 13.
+ar_pacf<-ARMAacf(ar = c(.5,0,0,0,0,0,0,0,0,0,0,.7,-.30),lag.max=30)
+plot(ar_pacf,type='h')
+
+#sim.ar<-arima.sim(list(ar=c(0.4,0.4)),n=1000)
+# acf(sim.ar,main="ACF of AR(2) process")
+```
+
+8. Consider the first dataset, q1train.csv, which is uploaded to piazza. Remove the trend and seasonality by differencing first with order 52 and then a usual differencing. Call the resulting dataset xt, t = 1, . . . , n to which a stationary model can be fit.
+(a) Estimate the spectral density of {Xt} nonparametrically from the data {xt}
+```{r}
+library(TSA)
+library(sapa)
+q1train <- read.csv("~/Downloads/q1train.csv")
+train_diff = diff(diff(q1train[,2],52))
+## use SDF to estimate the process (cross) spectral density function via nonparametric models
+SDF(train_diff)
+```
+
+(b) Fit a reasonable stationary model to {xt} and estimate the spectral density of {Xt} by the spectral density of the fitted model
+Consider the following model
+∇Yt=∑j=1m[Ajcos(2πfjt)+Bjsin(2πfjt)]+et
+where m is the number of key frequencies, Aj and Bj are unknown constants, fj’s are the key frequencies, {et} is normal white noise.
+```{r}
+spec_diff = periodogram(train_diff)
+# estimated spectral density greater than 9
+key_freq <- spec_diff$freq[which(spec_diff$spec > 3^2)]
+t <- 1:length(train_diff)
+harmonics <- do.call(cbind, lapply(key_freq, function(freq){
+  cbind(cos(2 * pi * freq * t), sin(2 * pi * freq * t))
+}))
+reslm <- lm(train_diff ~ harmonics)
+```
+
+(c) Plot the two estimates of the spectral density on the same plot. Commment on the two
+plots.
+```{r}
+plot(t, train_diff, type="l")
+lines(fitted(reslm)~t, col=4, lty=2)
+```
