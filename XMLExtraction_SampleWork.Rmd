@@ -1,0 +1,263 @@
+---
+title: "Lab 8 XML Extraction"
+author: "Ryan Chui"
+date: "April 6, 2015"
+output: pdf_document
+---
+
+*revised version!-christine*
+
+In this lab, we will use the XML package to read
+exchange rates (against the euro) from the 
+European Central Bank and create a time 
+series plot showing how the rates for four different currencies--the
+British pound (GBP), the US dollar (USD), 
+the Canadian dollar (CAD), and the Japanese yen (JPY)--have changed over time. 
+
+Before jumping to the code portions, open a browser and visit this URL:
+
+http://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml
+
+Examine the structure of the XML. 
+What are the exchange rates for the 
+British pound (GBP) for 4/2 and 4/1?
+*Type your answer here* 
+
+
+```{r}
+library(XML)
+
+# Read the data into R
+er = xmlParse("http://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml")
+```
+
+
+```{r}
+# Get the root node of the XML tree
+erRoot = xmlRoot(er)
+
+xmlSize(erRoot)
+names(erRoot)
+```
+
+We'll extract the exchange rates for the British pound (GBP) as
+an example. 
+First, we need to understand more about the
+structure of this XML tree. 
+It looks like all of the data are
+descendents of a "Cube" node.
+
+Here, we examine the first child of the Cube node.
+If you were to draw a diagram for this tree, with the 
+following expression, we would be looking at the following node:
+
+Envelope > Cube > Cube
+
+```{r}
+erRoot[['Cube']][1]
+```
+
+As we can see, this node is the parent of another node 
+named Cube that has a "time" attribute. 
+In turn, the Cube node with the "time" attribute node 
+is the parent of several other Cube nodes with
+"currency" and "rate" attributes. 
+
+We'll show you two ways to pull out the GBP exchange rate. 
+
+First way: Split into two steps.
+1. The first is to obtain all of the nodes that have the name "Cube" and an attribute "currency" set to GBP.
+
+We provide getNodeSet() the root node and the XPath
+to the nodes we're interested in. 
+Provide the predicate in the XPath expression to locate
+those Cube nodes with a currency attribute value of "GBP"
+
+```{r}
+gbp_nodes = getNodeSet(erRoot, '//x:Cube[@currency="GBP"]', 
+                       namespaces = "x")
+
+```
+Note we haven't covered namespaces, so don't worry about
+the "x:" part in the specification of the path above.
+
+Now for the second step.
+2. Use xmlSApply() to get the value of the "rate" 
+attribute on those nodes. 
+
+```{r}
+gbp1 = xmlSApply(gbp_nodes, xmlGetAttr, "rate")
+```
+
+Let's check it out. Do the values for 4/2 and 4/1
+match the values you found by inspection of the XML file?
+```{r}
+head(gbp1)
+length(gbp1)
+class(gbp1)
+```
+
+ANSWER THE QUESTIONS: 
+*Do the values match what you found earlier?*
+Yes
+*How many dates are there?*
+4162
+*What's the correct data type for this vector?*
+numeric
+
+The second approach does this all in one step with the
+xPathSApply() function.
+Note that this function is similarly spelled, 
+but xmlSApply() and xpathSApply() are not the same.
+The latter provides an XPath expression to specify the
+nodes to which the function is applied.
+```{r}
+gbp2 = xpathSApply(erRoot, '//x:Cube[@currency="GBP"]', 
+                  xmlGetAttr, "rate", namespaces = "x")
+```
+
+It is easy to check that these two methods 
+produce the same result!
+
+```{r}
+identical(gbp1, gbp2)
+```
+
+Now that we've extracted the GBP exchange rate, let's
+get the dates associated with each of those values.
+YOUR TURN: Fill in the XPAth expression to locate 
+all Cube nodes with a time attribute. Remeber to use 
+x: in front of the Cube tag name.
+
+```{r}
+days = xpathSApply(erRoot, '//x:Cube[@time]', 
+                   xmlGetAttr, "time", namespaces = "x")
+```
+
+Let's take a look at our work and reformat the return
+object so that it's a Date object:
+```{r}
+head(days)
+dayze = as.Date(days)
+```
+
+For a quick sanity check: 
+did we pull out many days as there are exchange rates?
+```{r}
+length(dayze) == length(gbp1)
+```
+
+This should be TRUE.
+
+Great! Now we've successfully extracted the exchange rates
+and dates for the British pound. We can create our first
+simple plot.
+
+```{r, echo=FALSE}
+# Recall gbp1 is a character vector; let's fix that now
+gbp = as.numeric(gbp1)
+
+# Let's plot the GBP exchange rate vs time. 
+plot(gbp ~ dayze, type = "l",
+     main="Exchange Rates Over Time",
+     xlab="Date",
+     ylab="Exchange Rate (against Euro)")
+```
+
+
+# Extract rates for three other currencies
+
+We gave you an example with the British pound. Now, we extract the exchange rates for other
+currencies and add it to the line plot we just created.
+
+Rather than repeating code, we write a helper function to
+do the extraction. This function takes the root node
+of the XML document, the three letter currency 
+abbreviation as a character string, and an argument
+that specifies the number of days that should be present
+in the document.
+It returns a numeric vector with the daily exchange rates
+for the associated currency.
+
+```{r}
+getExchangeRates = function(abbrev,root, numDays = NULL ){
+  # get rates
+  currency_path = sprintf('//x:Cube[@currency="%s"]', 
+                          abbrev)
+  rates = xpathSApply(root, currency_path,
+                      xmlGetAttr, "rate", namespaces = "x")
+  
+  # format as numeric vector:
+  rates = as.numeric(rates)
+  
+  # Check to see if there are any missing rates. 
+  # print a warning
+  if (!is.null(numDays)) {
+    if(length(rates) != numDays) {
+      warning("Incorrect number of dates!")
+      }
+  }  
+  return(rates)
+}
+```
+
+Apply your function to get the exchange rates for 
+the GBP, USD, CAD, and JPY.  Fill in the follwing
+call to lapply:
+```{r}
+currencies = lapply(X=c("GBP","USD","CAD","JPY"), 
+                    FUN=function(x){
+                      getExchangeRates(x, root=erRoot,
+                                       numDays=length(dayze))})
+```
+
+Now we are ready to make our plot!
+```{r}
+# Find the range of these exchange rates
+rateMin = min(sapply(currencies, min))
+rateMax = max(sapply(currencies, max))
+rateRange = c(rateMin, rateMax)
+
+plot(x = dayze, y = currencies[[1]], typ = "l",
+     ylim=rateRange, 
+     ylab="Exchange Rate (against euro)",
+     xlab="Date")
+
+# Add the lines for the countries
+mapply(function(rateVec, rateCol) {
+  lines(rateVec ~ dayze, col= rateCol)
+  }, rateVec = currencies, 
+  rateCol = c("black", "red", "blue", "forestgreen"))
+
+# Add a legend
+legend("topright", legend=c("GBP", "USD", "CAD", "JPY"),
+       col=c("black", "red", "blue", "forestgreen"),
+       lwd=1, bty="n")
+```
+
+## OPTIONAL FOR FUN:
+
+The currency for China (CNY) isn't available for all the 
+dates in the file. 
+Use the getExchangeRates function to 
+extract the CNY rates. How many rates are in this vector?
+
+2563
+
+Write another extraction to get
+the dates of those Cube nodes where the CNY rate is present.
+One way to do this is to locate the CNY Cube nodes and 
+then add one more step to the path to travel back up
+the tree one step to the parent Cube. To do this, 
+remember that the step consists of an axis followed
+by :: followed by a node name and then an optional 
+predicate. The axis "parent" is a valid axis.
+
+```{r}
+cny = getExchangeRates(root = erRoot, abbrev = "CNY")
+
+cnyDays = xpathSApply(erRoot, '//x:Cube[@currency="CNY"]/parent::x:Cube', 
+                      xmlGetAttr, "time", 
+                      namespaces = "x")
+```
+
