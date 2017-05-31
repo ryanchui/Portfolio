@@ -1,0 +1,235 @@
+---
+title: "Hw6"
+Name: Ryan Chui
+output: pdf_document
+Class: Stat 153
+---
+
+2 (a) Consider the data xt = sin(πt2/256) for t = 0, 1, . . . , 127. Plot the data. Also plot the magnitude (absolute) of the DFT coefficients b1, . . . , b64. Comment on the two plots.
+```{r}
+library(ggplot2)
+library(TSA)
+library(astsa)
+
+xs <- seq(0,127)
+wave.1 <- sin((pi*xs^2)/256)
+par(mfrow = c(1, 2))
+plot(xs,wave.1,type="l",ylim=c(-1,1), xlab="time",ylab="X_t", main = "Plot of X_t")
+abline(h=0,lty=3)
+
+data = data.frame(j = 1:64, b_j = abs(fft(wave.1))[1:64])
+ggplot(data,aes(x=j,y=b_j)) + geom_line() + ggtitle('Plot of DFT magnitude of X_t')
+```
+Comment: As time increases, the wave become more "compressed" since there are more spikes in the DFT magnitude. This is because the function cannot be expressed as a linear combination of sinusoids in Fourier frequency. The larger spikes corresponds to the lower-frequency stronger component; the smaller spikes corresponds to the higher-frequency weaker component.
+
+**Case of 512**
+```{r}
+xs <- seq(0,127)
+wave.2 <- sin((pi*xs^2)/512)
+par(mfrow = c(1, 2))
+plot(xs,wave.1,type="l",ylim=c(-1,1), xlab="time",ylab="X_t",main = "Plot of X_t")
+abline(h=0,lty=3)
+
+data = data.frame(j = 1:64, b_j = abs(fft(wave.2))[1:64])
+ggplot(data,aes(x=j,y=b_j)) + geom_line() + ggtitle('Plot of DFT magnitude of X_t')
+```
+
+**Case 1024**
+```{r}
+xs <- seq(0,127)
+wave.3 <- sin((pi*xs^2)/1024)
+par(mfrow = c(2,1))
+plot(xs,wave.1,type="l",ylim=c(-1,1), xlab="time",ylab="X_t",main = "Plot of X_t")
+abline(h=0,lty=3)
+
+data = data.frame(j = 1:64, b_j = abs(fft(wave.3))[1:64])
+ggplot(data,aes(x=j,y=b_j)) + geom_line() + ggtitle('Plot of DFT magnitude of X_t')
+```
+As the denominator increases, more weights are in lower frequency sinusoids. Higher frequencies are becoming less useful. The time series wavies are more compressed when t increases with smaller frequncy sinusods in this model.
+
+**Question 4**
+Consider the following seasonal AR model:
+(1 − φB)(1 − ΦBs)Xt = Zt,
+where {Zt} is white noise and |φ| < 1, |Φ| < 1.
+(b) Plot the spectral density for φ = 0.5, Φ = 0.9, σz^2 = 1 and s = 12
+```{r}
+# Set seed for reproducibility
+set.seed(5532)
+
+# let sigma2 = 1
+phi = 0.5
+PHI = 0.9
+sigma2 = 1
+s = 12
+scale = seq(0,500) / 1000
+
+spec = function(lamda){
+  spectral = ((sigma2^2) / (((1 + phi ^ 2 - 2 *phi*cos(2*pi*lamda)) * (1+PHI^2-2*PHI*cos(2*pi*lamda*s)))))
+}
+
+data = data.frame(lamda = scale, spec.dens = spec(scale))
+ggplot(data,aes(x=lamda,y=spec.dens)) + geom_line() + ggtitle('Sepectral Density')
+```
+
+
+(c) Also plot the spectral density for the AR(1) process (1 − 0.5B)Xt = Zt and the seasonal AR(1) process (1 − 0.9B12)Xt = Zt.
+```{r}
+# Set seed for reproducibility
+set.seed(1234)
+
+scale = seq(from = 0,to = 1/2, length = 500)
+
+spec = function(lamda){
+  spectral = (sigma2^2) / (1 + phi ^ 2 - 2 * phi * cos(2*pi*lamda))
+}
+
+data = data.frame(lamda = scale, spec.dens = spec(scale))
+ggplot(data,aes(x=lamda,y=spec.dens)) + geom_line() + ggtitle('Sepectral Density for AR(1)')
+```
+
+**Seasonal AR(1) spectral density**
+```{r}
+set.seed(1234)
+
+spec = function(lamda){
+  return ((sigma2^2) / (1 + PHI ^ 2 - 2 * PHI *cos(2*pi*lamda*s)))
+}
+
+data = data.frame(lamda = scale, spec.dens = spec(scale))
+ggplot(data,aes(x=lamda,y=spec.dens)) + geom_line() + ggtitle('Sepectral Density for seasonal AR(1)')
+```
+
+(d) Compare and comment on the different plots.
+AR(1) plot decreases smoothly from toward higher frequencies. Note that the spectral density of (a) is a combination of these two plots. We can see some periodic peaks in seasonal AR(1) as well as the spectral density of (a) but notice that the seasonal AR(1) has a higher periodic peaks.
+
+
+**Question 6**
+Consider the stationary Autoregressive process:
+Xt − 0.99Xt−3 = Zt where {Zt} is white noise.
+(a) Compute and plot the spectral density of {Xt}.
+```{r}
+# Let sigma2 = 1
+# we found fx = 1/9 * (1+2cos(2*pi*lamda))^2
+# let sigma2 = 1
+sigma2 = 1
+
+spec_fun = function(lamda){
+  spectral = (sigma2)^2 / (1.9801 - 1.98 * cos(6*pi*lamda))
+}
+
+data = data.frame(lamda = scale, spec.dens = spec_fun(scale))
+ggplot(data,aes(x=lamda,y=spec.dens)) + geom_line() + ggtitle('Sepectral Density for X_t')
+```
+
+b) Does the spectral density suggest that the sample paths of {Xt} will exhibit approximately oscillatory behaviour? If yes, then with what period?
+```{r}
+spec = ARMAspec(model = list(ar = c(0,0,0.99)))
+```
+
+Yes, the spectral density suggest that the sample paths of {Xt} will exhibit approximately oscillatory behaviour. 
+It oscillates with period 3.
+
+(c) Simulate a sample of size 100 from this model. Plot the simulated data. Does this plot support the conclusion of part (b)?
+```{r}
+# Recall AR(3) model
+set.seed(12345) # for reproducibility
+data = arima.sim(list(ar = c(0,0,0.99)), n = 100)
+plot(data, ylab = "data", main = "Simulated data {X_t} for n = 100")
+acf(data)
+```
+
+(d) Compute the spectral density of the filtered process:
+Yt = (Xt−1 + Xt + Xt+1)/3                         (1)
+How does the spectral density of {Yt} compare to that of {Xt}?
+```{r}
+# Compute Explicitly
+spec_fitted_fun = function(lamda){
+  #spectral = ((2 * sin(3*pi*lamda)/sin(pi*lamda)) * cos(pi*lamda) - 1)/ 3
+  spectral = (1 + 2 * cos(2*pi*lamda))^2 / 9
+}
+
+spec_fitted = spec$spec * (abs(spec$freq)^2)
+plot(x=spec$freq,y=spec_fitted, type = "l", main = 'Sepectral Density for Y_t')
+```
+
+(e) From the simulated sample from {Xt} in part (c), perform the averaging as in (1) to obtain a simulated sample from {Yt}. Plot this sample. Does this plot support the spectral density plot in part (d)?
+```{r}
+data_fit = numeric(98)
+for(i in seq(2,99)){
+    data_fit[i-1] = (data[i-1] + data[i] + data[i+1])/3
+}
+plot(x = seq(2,99), y = data_fit, type = "l", main = "simulated data for {Y_t}")
+acf(data_fit)
+```
+
+7. Without using the arima.sim() function in R, simulate n = 400 observations from the multiplicative seasonal ARMA model given by the difference equation: (1 − 0.5B)(1 − 0.7B 12)Xt = Zt where {Zt} is white noise. Plot the sample autocorrelation function of the simulated observations and compare it with the true acf of the process.
+```{r}
+set.seed(12345)
+v = rnorm(400,1,1)  # v contains 100 iid N(1,1) variates
+x = cumsum(v)       # x is a random walk with drift = 1 
+sarima(x,1,0,0,1,0,0,12,  details=FALSE)
+# Now, forecast
+sarima.for(x,400,1,0,0,1,0,0,12) #<-- it's an ARIMA(1,0,0)×(1,0,0)12
+
+# A seasonal AR(1) model has significant lags at 1, 12 and 13, with an increasing trend before lag 12, sharply cut off at lag 13.
+ar<-ARMAacf(ar = c(.5,0,0,0,0,0,0,0,0,0,0,.7,-.35),lag.max=30)
+acf_data = acf(ar)
+plot(acf_data, main = "ACF without arima.sim function")
+data3 = data.frame(lag = 1:13, actual = ar[2:14], simulated = acf_data$acf[1:13])
+ggplot(data3, aes(x = lag)) + geom_line(aes(y = actual), col = "red") + geom_line(aes(y = simulated))
+```
+
+Comment: The simulated ACF is roughly the same shape as the acutal ACF plot. The simulation is pretty accurate.
+
+8. Consider the first dataset, q1train.csv, which is uploaded to piazza. Remove the trend and seasonality by differencing first with order 52 and then a usual differencing. Call the resulting dataset xt, t = 1, . . . , n to which a stationary model can be fit.
+(a) Estimate the spectral density of {Xt} nonparametrically from the data {xt}
+```{r}
+library(TSA)
+q1train <- read.csv("~/Downloads/q1train.csv")
+train_diff = diff(diff(q1train[,2],52))
+
+n = length(train_diff)
+xaxis = seq(1, round(n/2))/n
+periodogram = abs(fft(train_diff)[2:(round(n/2) + 1)])^2 / n
+
+
+pgram = c(rev(periodogram), periodogram, rev(periodogram))
+smoothpar = 45
+smoothpgram = filter(pgram,rep(1,smoothpar)/smoothpar)
+smoothpgram = smoothpgram[(round(n/2) + 1 ): (2*round(n/2))]
+# perform nonparametric spectral estimate
+plot(xaxis, smoothpgram, type = "l", main = "smoothed periodogram")
+acf(train_diff,lag.max = 100)
+```
+
+(b) Fit a reasonable stationary model to {xt} and estimate the spectral density of {Xt} by the spectral density of the fitted model. Consider the following model
+∇Yt=∑j=1m[Ajcos(2πfjt)+Bjsin(2πfjt)]+et
+where m is the number of key frequencies, Aj and Bj are unknown constants, fj’s are the key frequencies, {et} is normal white noise.
+```{r}
+spec_diff = periodogram(train_diff)
+# estimated spectral density greater than 9
+key_freq <- spec_diff$freq[which(spec_diff$spec > 3^2)]
+t <- 1:length(train_diff)
+harmonics <- do.call(cbind, lapply(key_freq, function(freq){
+  cbind(cos(2 * pi * freq * t), sin(2 * pi * freq * t))
+}))
+reslm <- lm(train_diff ~ harmonics)
+
+plot(t, train_diff, type="l")
+lines(fitted(reslm)~t, col=4, lty=2)
+```
+
+** Plot two estimates on the same plot **
+```{r}
+model = arima(train_diff, order = c(1,0,0), seasonal = list(order=c(1,0,0),period = 52))
+len = seq(0,0.5,0.001)
+ar1 = model$coef['ar1']
+sar1 = model$coef['sar1']
+ar = c(ar1, rep(0,50), sar1, ar1 * sar1)
+spec.dens = ARMAspec(list(ar = ar), plot = FALSE)$spec
+plot(xaxis,smoothpgram,type = "l", main = "Spectral density of two estimation" )
+abline(h = 0)
+points(len, spec.dens, type = "l", col = "red")
+```
+
+Comment: The shape of the two estimates of the spectral density is increasing with a time period of 52. The non-paramete estimate seeems to be a better fit because it is more "smoothed" than the orginal periodogram. The periodgram of the orginal data shows an increasing trend but it is not very accurate since this method is a bit more wiggely and is difficult to find a good m. The nonparametric estiamtion can fit to the data better but it might be very far away from the periodogram. 
